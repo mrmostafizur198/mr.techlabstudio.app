@@ -1,0 +1,25 @@
+{
+  "name": "Mr Techlab Studio",
+  "short_name": "Mr Techlab Studio",
+  "description": "Premium Android App Marketplace",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0A0A10",
+  "theme_color": "#0A0A10",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
