@@ -1,0 +1,77 @@
+{
+  "_comment": "Reference security rules for the mr-apk-bazar Realtime Database. Paste (and adapt) this into Firebase Console → Realtime Database → Rules. The admin panel's login check is UX only — this is what actually stops a non-admin from writing data, no matter what the frontend does.",
+
+  "rules": {
+
+    "settings": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+
+    "apps": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+
+    "hostLinks": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+
+    "prompts": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+
+    "analytics": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('blocked').val() !== true",
+      "$entryId": {
+        ".validate": "newData.hasChildren(['appId', 'timestamp'])"
+      }
+    },
+
+    "admins": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+
+    "users": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "name": {
+          ".write": "auth != null && auth.uid === $uid"
+        },
+        "email": {
+          ".write": "auth != null && auth.uid === $uid"
+        },
+        "photoURL": {
+          ".write": "auth != null && auth.uid === $uid"
+        },
+        "downloads": {
+          ".write": "auth != null && auth.uid === $uid && root.child('users').child(auth.uid).child('blocked').val() !== true"
+        },
+        "blocked": {
+          ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+        }
+      }
+    },
+
+    ".read": false,
+    ".write": false
+  },
+
+  "_setup_notes": [
+    "1. Create your first admin manually: sign up/sign in once through the user site (or Firebase Console → Authentication), copy that account's UID, then in Realtime Database create the path admins/<that-uid> with value true.",
+    "2. After that, the admin panel's Admins tab can add/remove further admins by UID — but only because the rules above already grant admins write access to the admins node.",
+    "3. 'apps' and 'settings' stay publicly readable (.read: true) so guests and logged-out visitors can still browse the storefront; only writes require the admins flag.",
+    "3b. 'hostLinks' follows the exact same pattern as 'apps' — publicly readable, admin-only writes — it powers the user app's Host page (hosting/Firebase/app-posting resource cards).",
+    "4. 'users' now has a top-level .read for admins so the admin panel's Users tab can list everyone in one fetch; each user can still only read their own '$uid' node.",
+    "5. 'name' and 'email' are written by the user app itself right after sign-in (so the admin panel's Users tab can show a name instead of a bare UID) — only the account owner can write their own, never an admin or anyone else.",
+    "5. 'blocked' is only writable by an admin — a user can never unblock themselves — and both 'downloads' writes and 'analytics' writes are denied once a user is flagged blocked, so no new download history or analytics event gets recorded for them.",
+    "6. IMPORTANT — this only stops the *record-keeping* at the database level. As delivered, the user app's own download-button code does not check the 'blocked' flag before triggering the actual file download/redirect in the browser, so a blocked user could still click Download and the browser would still try to fetch the file even though nothing gets logged for it. If you want blocking to actually stop the download itself, the user app's requestDownload()/startDownload() functions need a small check added (read users/{uid}/blocked and stop before proceeding) — ask for that as a separate user-app update.",
+    "7. Everything not explicitly listed defaults to no read/no write (the trailing .read/.write false), which matches the 'don't trust arbitrary data' requirement.",
+    "8. If you use Firebase Auth anonymous sign-in anywhere else in your projects, double-check these rules against that — this reference assumes guests on MR APK BAZAR are never Firebase-authenticated at all (they just don't sign in)."
+  ]
+}
