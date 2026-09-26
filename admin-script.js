@@ -37,7 +37,7 @@ const $ = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 function escapeHtml(s){ const d=document.createElement("div"); d.textContent=s??""; return d.innerHTML; }
 
-const state = { user:null, isAdmin:false, apps:[], admins:[], users:[], hostLinks:[], prompts:[] };
+const state = { user:null, isAdmin:false, apps:[], hostLinks:[], prompts:[], admins:[], users:[] };
 
 /* ===================== TOAST ===================== */
 function toast(msg, type="default"){
@@ -117,7 +117,7 @@ function applyPage(name){
   $$(".side-nav button").forEach(b=> b.classList.toggle("active", b.dataset.page===name));
   $("#sidebar").classList.remove("open");
   if(name==="apps") renderAppsList();
-  if(name==="hostlinks") renderHostLinksList();
+  if(name==="host") renderHostList();
   if(name==="prompts") renderPromptsList();
   if(name==="settings") loadSettingsForm();
   if(name==="analytics") loadAnalytics();
@@ -132,20 +132,15 @@ function switchPage(name){
 }
 window.addEventListener("popstate", (e)=>{
   const st = e.state;
-  const modalOpen = $("#app-modal").classList.contains("show");
-  const targetIsModal = !!(st && st.type === "overlay" && st.overlay === "app-modal");
-  const hostModalOpen = $("#hostlink-modal").classList.contains("show");
-  const targetIsHostModal = !!(st && st.type === "overlay" && st.overlay === "hostlink-modal");
-  const promptModalOpen = $("#prompt-modal").classList.contains("show");
-  const targetIsPromptModal = !!(st && st.type === "overlay" && st.overlay === "prompt-modal");
+  const modalIds = { "app-modal":closeAppModal, "host-modal":closeHostModal, "prompt-modal":closePromptModal };
+  const openModalKey = Object.keys(modalIds).find(id => $("#"+id).classList.contains("show"));
+  const targetIsModal = !!(st && st.type === "overlay" && modalIds[st.overlay]);
 
-  if(modalOpen && !targetIsModal) closeAppModal();
-  if(hostModalOpen && !targetIsHostModal) closeHostLinkModal();
-  if(promptModalOpen && !targetIsPromptModal) closePromptModal();
+  if(openModalKey && st?.overlay !== openModalKey) modalIds[openModalKey]();
 
   if(st && st.type === "page"){
     applyPage(st.page);
-  } else if(!st && !targetIsModal && !targetIsHostModal && !targetIsPromptModal){
+  } else if(!st && !targetIsModal){
     applyPage("dashboard");
   }
 });
@@ -364,60 +359,57 @@ async function loadHostLinks(){
   try{
     const snap = await get(ref(db, "hostLinks"));
     const val = snap.exists() ? snap.val() : {};
-    state.hostLinks = Object.entries(val).map(([id,v])=>({id,...v})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-  }catch(err){
-    toast("Unable to load host links.", "error");
-  }
+    state.hostLinks = Object.entries(val).map(([id,v])=>({id,...v}));
+  }catch(err){ toast("Unable to load host links.", "error"); }
 }
-function hostLinkRowHtml(link){
-  const icon = link.logoUrl
-    ? `<img src="${escapeHtml(link.logoUrl)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ic',textContent:'${escapeHtml((link.name||'?').charAt(0).toUpperCase())}'}))">`
-    : `<div class="ic">${escapeHtml((link.name||"?").charAt(0).toUpperCase())}</div>`;
+function hostRowHtml(link){
+  const icon = link.logoUrl ? `<img src="${escapeHtml(link.logoUrl)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ic',textContent:'${escapeHtml((link.name||'?').charAt(0).toUpperCase())}'}))">` : `<div class="ic">${escapeHtml((link.name||"?").charAt(0).toUpperCase())}</div>`;
   return `<div class="list-row">
     ${icon}
     <div class="info">
-      <div class="n">${escapeHtml(link.name||"Untitled link")}</div>
+      <div class="n">${escapeHtml(link.name||"Untitled")}</div>
       <div class="m">
-        <span class="badge ${link.enabled!==false?"on":"off"}">${link.enabled!==false?"Enabled":"Disabled"}</span>
-        ${link.url ? `<span style="word-break:break-all;">${escapeHtml(link.url)}</span>` : `<span>No URL set</span>`}
+        <span class="badge ${link.videoUrl ? "on" : "off"}">${link.videoUrl ? "Setup video set" : "No setup video"}</span>
+        <span class="badge ${link.enabled!==false?'on':'off'}">${link.enabled!==false?"Enabled":"Disabled"}</span>
       </div>
     </div>
     <div class="row-actions">
-      <button class="icon-btn" data-edit-hostlink="${escapeHtml(link.id)}" aria-label="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-      <button class="icon-btn danger" data-del-hostlink="${escapeHtml(link.id)}" aria-label="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg></button>
+      <button class="icon-btn" data-edit-host="${escapeHtml(link.id)}" aria-label="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+      <button class="icon-btn danger" data-del-host="${escapeHtml(link.id)}" aria-label="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg></button>
     </div>
   </div>`;
 }
-async function renderHostLinksList(){
-  const wrap = $("#hostlinks-list");
+async function renderHostList(){
+  const wrap = $("#host-list");
   wrap.innerHTML = `<div class="empty-note">Loading...</div>`;
   await loadHostLinks();
-  wrap.innerHTML = state.hostLinks.length ? state.hostLinks.map(hostLinkRowHtml).join("") : `<div class="empty-note">No host links yet. Add your first one above.</div>`;
-  $$("[data-edit-hostlink]", wrap).forEach(btn=> btn.addEventListener("click", ()=> openHostLinkModal(btn.dataset.editHostlink)));
-  $$("[data-del-hostlink]", wrap).forEach(btn=> btn.addEventListener("click", ()=> deleteHostLink(btn.dataset.delHostlink)));
+  wrap.innerHTML = state.hostLinks.length ? state.hostLinks.map(hostRowHtml).join("") : `<div class="empty-note">No host links yet. Add your first one.</div>`;
+  $$("[data-edit-host]", wrap).forEach(btn=> btn.addEventListener("click", ()=> openHostModal(btn.dataset.editHost)));
+  $$("[data-del-host]", wrap).forEach(btn=> btn.addEventListener("click", ()=> deleteHost(btn.dataset.delHost)));
 }
-async function deleteHostLink(id){
+async function deleteHost(id){
   const link = state.hostLinks.find(l=>l.id===id);
-  if(!confirm(`Delete "${link ? link.name : "this link"}"? This cannot be undone.`)) return;
+  if(!confirm(`Delete "${link ? link.name : "this host link"}"? This cannot be undone.`)) return;
   try{
     await remove(ref(db, `hostLinks/${id}`));
-    toast("Link deleted.", "success");
-    renderHostLinksList();
+    state.hostLinks = state.hostLinks.filter(l=>l.id!==id);
+    toast("Host link deleted.", "success");
+    renderHostList();
   }catch(err){ toast("Delete failed. Check your permissions.", "error"); }
 }
-$("#btn-add-hostlink").addEventListener("click", ()=> openHostLinkModal(null));
-$("#hostlink-modal-close").addEventListener("click", ()=> history.back());
-$("#hostlink-modal-cancel").addEventListener("click", ()=> history.back());
-$("#hostlink-overlay").addEventListener("click", ()=> history.back());
-$("#btn-upload-hostlink-logo").addEventListener("click", ()=> $("#hostlink-logo-file-input").click());
-$("#hostlink-logo-file-input").addEventListener("change", async (e)=>{
+$("#btn-add-host").addEventListener("click", ()=> openHostModal(null));
+$("#host-modal-close").addEventListener("click", ()=> history.back());
+$("#host-modal-cancel").addEventListener("click", ()=> history.back());
+$("#host-overlay").addEventListener("click", ()=> history.back());
+$("#btn-upload-host-logo").addEventListener("click", ()=> $("#host-logo-file-input").click());
+$("#host-logo-file-input").addEventListener("change", async (e)=>{
   const file = e.target.files && e.target.files[0];
   if(!file) return;
-  const statusEl = $("#hostlink-logo-upload-status");
+  const statusEl = $("#host-logo-upload-status");
   statusEl.textContent = "Uploading...";
   try{
     const url = await uploadToImgbb(file);
-    $("#hostlink-logo").value = url;
+    $("#host-logo").value = url;
     statusEl.textContent = "Uploaded ✓";
     setTimeout(()=>{ statusEl.textContent = ""; }, 2500);
   }catch(err){
@@ -426,52 +418,52 @@ $("#hostlink-logo-file-input").addEventListener("change", async (e)=>{
   }
   e.target.value = "";
 });
-function openHostLinkModal(id){
+function openHostModal(id){
   const link = id ? state.hostLinks.find(l=>l.id===id) : null;
-  $("#hostlink-modal-title").textContent = link ? "Edit Link" : "Add Link";
-  $("#hostlink-id").value = link ? link.id : "";
-  $("#hostlink-name").value = link?.name || "";
-  $("#hostlink-logo").value = link?.logoUrl || "";
-  $("#hostlink-logo-upload-status").textContent = "";
-  $("#hostlink-desc").value = link?.description || "";
-  $("#hostlink-url").value = link?.url || "";
-  $("#hostlink-enabled").checked = link ? link.enabled !== false : true;
-  $("#hostlink-overlay").classList.add("show");
-  $("#hostlink-modal").classList.add("show");
-  history.pushState({type:"overlay", overlay:"hostlink-modal"}, "", location.href);
+  $("#host-modal-title").textContent = link ? "Edit Host Link" : "Add Host Link";
+  $("#host-id").value = link ? link.id : "";
+  $("#host-name").value = link?.name || "";
+  $("#host-logo").value = link?.logoUrl || "";
+  $("#host-logo-upload-status").textContent = "";
+  $("#host-desc").value = link?.description || "";
+  $("#host-url").value = link?.url || "";
+  $("#host-video").value = link?.videoUrl || "";
+  $("#host-enabled").checked = link ? link.enabled !== false : true;
+  $("#host-overlay").classList.add("show");
+  $("#host-modal").classList.add("show");
+  history.pushState({type:"overlay", overlay:"host-modal"}, "", location.href);
 }
-function closeHostLinkModal(){
-  $("#hostlink-overlay").classList.remove("show");
-  $("#hostlink-modal").classList.remove("show");
+function closeHostModal(){
+  $("#host-overlay").classList.remove("show");
+  $("#host-modal").classList.remove("show");
 }
-$("#hostlink-modal-save").addEventListener("click", saveHostLinkForm);
-async function saveHostLinkForm(){
-  const name = $("#hostlink-name").value.trim();
+$("#host-modal-save").addEventListener("click", saveHostForm);
+async function saveHostForm(){
+  const name = $("#host-name").value.trim();
   if(!name){ toast("Name is required.", "error"); return; }
-  const url = $("#hostlink-url").value.trim();
-  if(!url || !/^https:\/\//i.test(url)){ toast("Link URL must start with https://", "error"); return; }
-  const id = $("#hostlink-id").value;
-  const now = Date.now();
+  const url = $("#host-url").value.trim();
+  if(url && !/^https:\/\//i.test(url)){ toast("Link URL must start with https://", "error"); return; }
+  const videoUrl = $("#host-video").value.trim();
+  if(videoUrl && !/^https:\/\//i.test(videoUrl)){ toast("Setup video URL must start with https://", "error"); return; }
+  const id = $("#host-id").value;
   const payload = {
     name,
-    logoUrl: $("#hostlink-logo").value.trim(),
-    description: $("#hostlink-desc").value.trim(),
+    logoUrl: $("#host-logo").value.trim(),
+    description: $("#host-desc").value.trim(),
     url,
-    enabled: $("#hostlink-enabled").checked,
-    updatedAt: now
+    videoUrl,
+    enabled: $("#host-enabled").checked
   };
   try{
     if(id){
       await update(ref(db, `hostLinks/${id}`), payload);
-      toast("Link updated.", "success");
+      toast("Host link updated.", "success");
     }else{
-      payload.createdAt = now;
-      const newRef = push(ref(db, "hostLinks"));
-      await set(newRef, payload);
-      toast("Link added.", "success");
+      await set(push(ref(db, "hostLinks")), payload);
+      toast("Host link added.", "success");
     }
-    closeHostLinkModal();
-    renderHostLinksList();
+    closeHostModal();
+    renderHostList();
   }catch(err){
     toast("Save failed. Check your permissions.", "error");
   }
@@ -482,19 +474,18 @@ async function loadPrompts(){
   try{
     const snap = await get(ref(db, "prompts"));
     const val = snap.exists() ? snap.val() : {};
-    state.prompts = Object.entries(val).map(([id,v])=>({id,...v})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-  }catch(err){
-    toast("Unable to load prompts.", "error");
-  }
+    state.prompts = Object.entries(val).map(([id,v])=>({id,...v}));
+  }catch(err){ toast("Unable to load prompts.", "error"); }
 }
 function promptRowHtml(p){
+  const preview = (p.promptText||"").slice(0,70);
   return `<div class="list-row">
     <div class="ic">${escapeHtml((p.title||"?").charAt(0).toUpperCase())}</div>
     <div class="info">
-      <div class="n">${escapeHtml(p.title||"Untitled prompt")}</div>
+      <div class="n">${escapeHtml(p.title||"Untitled")}</div>
       <div class="m">
-        <span class="badge ${p.enabled!==false?"on":"off"}">${p.enabled!==false?"Enabled":"Disabled"}</span>
-        <span style="word-break:break-all;">${escapeHtml((p.promptText||"").slice(0,80))}${(p.promptText||"").length>80?"…":""}</span>
+        <span>${escapeHtml(preview)}${(p.promptText||"").length>70?"…":""}</span>
+        <span class="badge ${p.enabled!==false?'on':'off'}">${p.enabled!==false?"Enabled":"Disabled"}</span>
       </div>
     </div>
     <div class="row-actions">
@@ -507,7 +498,7 @@ async function renderPromptsList(){
   const wrap = $("#prompts-list");
   wrap.innerHTML = `<div class="empty-note">Loading...</div>`;
   await loadPrompts();
-  wrap.innerHTML = state.prompts.length ? state.prompts.map(promptRowHtml).join("") : `<div class="empty-note">No prompts yet. Add your first one above.</div>`;
+  wrap.innerHTML = state.prompts.length ? state.prompts.map(promptRowHtml).join("") : `<div class="empty-note">No prompts yet. Add your first one.</div>`;
   $$("[data-edit-prompt]", wrap).forEach(btn=> btn.addEventListener("click", ()=> openPromptModal(btn.dataset.editPrompt)));
   $$("[data-del-prompt]", wrap).forEach(btn=> btn.addEventListener("click", ()=> deletePrompt(btn.dataset.delPrompt)));
 }
@@ -516,6 +507,7 @@ async function deletePrompt(id){
   if(!confirm(`Delete "${p ? p.title : "this prompt"}"? This cannot be undone.`)) return;
   try{
     await remove(ref(db, `prompts/${id}`));
+    state.prompts = state.prompts.filter(x=>x.id!==id);
     toast("Prompt deleted.", "success");
     renderPromptsList();
   }catch(err){ toast("Delete failed. Check your permissions.", "error"); }
@@ -543,24 +535,15 @@ $("#prompt-modal-save").addEventListener("click", savePromptForm);
 async function savePromptForm(){
   const title = $("#prompt-title").value.trim();
   const promptText = $("#prompt-text").value.trim();
-  if(!title){ toast("Title is required.", "error"); return; }
-  if(!promptText){ toast("Prompt text is required.", "error"); return; }
+  if(!title || !promptText){ toast("Title and prompt text are required.", "error"); return; }
   const id = $("#prompt-id").value;
-  const now = Date.now();
-  const payload = {
-    title,
-    promptText,
-    enabled: $("#prompt-enabled").checked,
-    updatedAt: now
-  };
+  const payload = { title, promptText, enabled: $("#prompt-enabled").checked };
   try{
     if(id){
       await update(ref(db, `prompts/${id}`), payload);
       toast("Prompt updated.", "success");
     }else{
-      payload.createdAt = now;
-      const newRef = push(ref(db, "prompts"));
-      await set(newRef, payload);
+      await set(push(ref(db, "prompts")), payload);
       toast("Prompt added.", "success");
     }
     closePromptModal();

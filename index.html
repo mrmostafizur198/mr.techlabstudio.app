@@ -5,12 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>MR APK BAZAR — Admin Panel</title>
 <meta name="theme-color" content="#0A0A10">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="icon" href="logo.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%23151022'/%3E%3Cpath d='M30 68 L50 26 L70 68 M38 54 H62' stroke='%238B6CFF' stroke-width='7' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="admin-styles.css">
 </head>
 <body>
@@ -18,7 +16,7 @@
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-card">
-    <div class="login-mark"><img src="logo.png" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"></div>
+    <div class="login-mark"><svg viewBox="0 0 100 100" fill="none"><path d="M30 68 L50 26 L70 68 M38 54 H62" stroke="#fff" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     <h1>Admin Panel</h1>
     <p>MR APK BAZAR — sign in with your admin account.</p>
     <div class="field"><label for="admin-email">Email</label><input id="admin-email" type="email" autocomplete="email" placeholder="admin@example.com"></div>
@@ -42,12 +40,12 @@
 <!-- SHELL -->
 <div id="shell">
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-brand"><div class="mark"><img src="logo.png" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"></div>MR APK BAZAR<br>Admin</div>
+    <div class="sidebar-brand"><div class="mark"><svg viewBox="0 0 100 100" fill="none"><path d="M30 68 L50 26 L70 68 M38 54 H62" stroke="#fff" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>MR APK BAZAR<br>Admin</div>
     <nav class="side-nav">
       <button data-page="dashboard" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Dashboard</button>
       <button data-page="apps"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 12h8M12 8v8"/></svg>Apps</button>
-      <button data-page="hostlinks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><circle cx="7" cy="7" r="1" fill="currentColor" stroke="none"/><circle cx="7" cy="17" r="1" fill="currentColor" stroke="none"/></svg>Host Links</button>
-      <button data-page="prompts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>Prompts</button>
+      <button data-page="host"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><circle cx="7" cy="7" r="1" fill="currentColor" stroke="none"/><circle cx="7" cy="17" r="1" fill="currentColor" stroke="none"/></svg>Host Links</button>
+      <button data-page="prompts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v12H8l-4 4V4Z"/><path d="M8 9h8M8 12.5h5"/></svg>Prompts</button>
       <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
       <button data-page="analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>Analytics</button>
       <button data-page="users"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Users</button>
@@ -70,13 +68,75 @@
       <!-- DASHBOARD -->
       <section class="page show" id="page-dashboard">
         <div class="page-head"><div><h2>Dashboard</h2><p>Overview of your catalog and activity.</p></div></div>
-        <div class="stat-grid">
-          <div class="stat-card"><div class="n" id="stat-total-apps">—</div><div class="l">Total apps</div></div>
-          <div class="stat-card"><div class="n" id="stat-enabled-apps">—</div><div class="l">Enabled apps</div></div>
-          <div class="stat-card"><div class="n" id="stat-categories">—</div><div class="l">Categories</div></div>
-          <div class="stat-card"><div class="n" id="stat-downloads">—</div><div class="l">Logged downloads</div></div>
-          <div class="stat-card"><div class="n" id="stat-users">—</div><div class="l">Users tracked</div></div>
-        </div>
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <rect x="4" y="4" width="16" height="16" rx="4"/>
+        <path d="M8 12h8M12 8v8"/>
+      </svg>
+    </div>
+    <div class="stat-content">
+      <div class="n" id="stat-total-apps">—</div>
+      <div class="l">Total apps</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M20 6 9 17l-5-5"/>
+      </svg>
+    </div>
+    <div class="stat-content">
+      <div class="n" id="stat-enabled-apps">—</div>
+      <div class="l">Enabled apps</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+        <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+      </svg>
+    </div>
+    <div class="stat-content">
+      <div class="n" id="stat-categories">—</div>
+      <div class="l">Categories</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M12 3v12"/>
+        <path d="m7 10 5 5 5-5"/>
+        <path d="M5 21h14"/>
+      </svg>
+    </div>
+    <div class="stat-content">
+      <div class="n" id="stat-downloads">—</div>
+      <div class="l">Logged downloads</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M3 21v-2a6 6 0 0 1 12 0v2"/>
+        <path d="M16 11a4 4 0 0 1 5 4v2"/>
+      </svg>
+    </div>
+    <div class="stat-content">
+      <div class="n" id="stat-users">—</div>
+      <div class="l">Users tracked</div>
+    </div>
+  </div>
+</div>
         <div class="page-head"><h2 style="font-size:1.02rem;">Recently added</h2></div>
         <div class="panel" id="dash-recent"></div>
       </section>
@@ -94,18 +154,18 @@
       </section>
 
       <!-- HOST LINKS -->
-      <section class="page" id="page-hostlinks">
+      <section class="page" id="page-host">
         <div class="page-head">
-          <div><h2>Host Links</h2><p>Resource cards shown on the user app's Host page — hosting, Firebase, and app-posting links.</p></div>
-          <button class="btn btn-primary" id="btn-add-hostlink"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add Link</button>
+          <div><h2>Host Links</h2><p>Cards shown on the site's Host page, each with a link and a setup-video link.</p></div>
+          <button class="btn btn-primary" id="btn-add-host"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add Host Link</button>
         </div>
-        <div class="panel" id="hostlinks-list"></div>
+        <div class="panel" id="host-list"></div>
       </section>
 
       <!-- PROMPTS -->
       <section class="page" id="page-prompts">
         <div class="page-head">
-          <div><h2>Prompts</h2><p>Copy-able prompt cards shown on the user app's Prompts page.</p></div>
+          <div><h2>Prompts</h2><p>Copy-able prompt snippets shown on the site's Prompts page.</p></div>
           <button class="btn btn-primary" id="btn-add-prompt"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add Prompt</button>
         </div>
         <div class="panel" id="prompts-list"></div>
@@ -207,26 +267,27 @@
 </div>
 
 <!-- HOST LINK FORM MODAL -->
-<div class="overlay" id="hostlink-overlay"></div>
-<div class="modal" id="hostlink-modal" role="dialog" aria-modal="true">
-  <div class="modal-head"><h3 id="hostlink-modal-title">Add Link</h3><button class="icon-btn" id="hostlink-modal-close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
-  <input type="hidden" id="hostlink-id">
-  <div class="field"><label for="hostlink-name">Name *</label><input id="hostlink-name" placeholder="e.g. Firebase Console"></div>
+<div class="overlay" id="host-overlay"></div>
+<div class="modal" id="host-modal" role="dialog" aria-modal="true">
+  <div class="modal-head"><h3 id="host-modal-title">Add Host Link</h3><button class="icon-btn" id="host-modal-close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+  <input type="hidden" id="host-id">
+  <div class="field"><label for="host-name">Name *</label><input id="host-name" placeholder="e.g. Firebase Hosting"></div>
   <div class="field">
-    <label for="hostlink-logo">Logo URL</label>
-    <input id="hostlink-logo" placeholder="https://...">
+    <label for="host-logo">Logo URL</label>
+    <input id="host-logo" placeholder="https://...">
     <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-      <button type="button" class="btn btn-ghost btn-sm" id="btn-upload-hostlink-logo">Upload image</button>
-      <span id="hostlink-logo-upload-status" style="font-size:0.78rem;color:var(--text-faint);"></span>
-      <input type="file" id="hostlink-logo-file-input" accept="image/*" style="display:none;">
+      <button type="button" class="btn btn-ghost btn-sm" id="btn-upload-host-logo">Upload image</button>
+      <span id="host-logo-upload-status" style="font-size:0.78rem;color:var(--text-faint);"></span>
+      <input type="file" id="host-logo-file-input" accept="image/*" style="display:none;">
     </div>
   </div>
-  <div class="field"><label for="hostlink-desc">Description / instructions</label><textarea id="hostlink-desc" placeholder="A few lines about what this is for. Type /n anywhere you want a new bullet line (not Enter) — e.g. Step one/nStep two/nStep three"></textarea></div>
-  <div class="field"><label for="hostlink-url">Link URL *</label><input id="hostlink-url" placeholder="https://..."></div>
-  <div class="toggle-row"><span class="lbl">Enabled (visible on site)</span><label class="switch"><input type="checkbox" id="hostlink-enabled" checked><span class="track"><span class="thumb"></span></span></label></div>
+  <div class="field"><label for="host-desc">Description</label><textarea id="host-desc" placeholder="Use /n or a new line to break into bullet points"></textarea></div>
+  <div class="field"><label for="host-url">Link URL * <span style="color:var(--text-faint);font-weight:400;">(used by "Continue with Chrome")</span></label><input id="host-url" placeholder="https://..."></div>
+  <div class="field"><label for="host-video">Setup video URL <span style="color:var(--text-faint);font-weight:400;">(YouTube — opens from the "সেট-আপ ভিডিও" button)</span></label><input id="host-video" placeholder="https://youtube.com/..."></div>
+  <div class="toggle-row"><span class="lbl">Enabled (visible on site)</span><label class="switch"><input type="checkbox" id="host-enabled" checked><span class="track"><span class="thumb"></span></span></label></div>
   <div class="modal-actions">
-    <button class="btn btn-ghost btn-block" id="hostlink-modal-cancel">Cancel</button>
-    <button class="btn btn-primary btn-block" id="hostlink-modal-save">Save Link</button>
+    <button class="btn btn-ghost btn-block" id="host-modal-cancel">Cancel</button>
+    <button class="btn btn-primary btn-block" id="host-modal-save">Save Host Link</button>
   </div>
 </div>
 
@@ -235,8 +296,8 @@
 <div class="modal" id="prompt-modal" role="dialog" aria-modal="true">
   <div class="modal-head"><h3 id="prompt-modal-title">Add Prompt</h3><button class="icon-btn" id="prompt-modal-close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
   <input type="hidden" id="prompt-id">
-  <div class="field"><label for="prompt-title">Title *</label><input id="prompt-title" placeholder="e.g. App description writer"></div>
-  <div class="field"><label for="prompt-text">Prompt text *</label><textarea id="prompt-text" placeholder="The full text that gets copied when the user taps Copy" style="min-height:140px;"></textarea></div>
+  <div class="field"><label for="prompt-title">Title *</label><input id="prompt-title" placeholder="e.g. Product description"></div>
+  <div class="field"><label for="prompt-text">Prompt text *</label><textarea id="prompt-text" style="min-height:130px;" placeholder="The text users will copy"></textarea></div>
   <div class="toggle-row"><span class="lbl">Enabled (visible on site)</span><label class="switch"><input type="checkbox" id="prompt-enabled" checked><span class="track"><span class="thumb"></span></span></label></div>
   <div class="modal-actions">
     <button class="btn btn-ghost btn-block" id="prompt-modal-cancel">Cancel</button>
