@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>MR APK BAZAR — Admin Panel</title>
 <meta name="theme-color" content="#0A0A10">
+<link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -46,6 +47,8 @@
       <button data-page="apps"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 12h8M12 8v8"/></svg>Apps</button>
       <button data-page="host"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><circle cx="7" cy="7" r="1" fill="currentColor" stroke="none"/><circle cx="7" cy="17" r="1" fill="currentColor" stroke="none"/></svg>Host Links</button>
       <button data-page="prompts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v12H8l-4 4V4Z"/><path d="M8 9h8M8 12.5h5"/></svg>Prompts</button>
+      <button data-page="zipprompts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>ZIP Prompts</button>
+      <button data-page="developers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M17 5.5a3 3 0 0 1 0 5.6M21 19c0-2.4-1.4-4.2-3.4-5"/></svg>Developers<span class="nav-count" id="nav-dev-count" hidden>0</span></button>
       <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
       <button data-page="analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>Analytics</button>
       <button data-page="users"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Users</button>
@@ -171,13 +174,60 @@
         <div class="panel" id="prompts-list"></div>
       </section>
 
+      <!-- ZIP PROMPTS -->
+      <section class="page" id="page-zipprompts">
+        <div class="page-head">
+          <div><h2>ZIP Prompts</h2><p>Text files shown on the site's Files page. Users can edit the {{ }} parts and download a password-protected ZIP.</p></div>
+          <button class="btn btn-primary" id="btn-add-zp"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add ZIP Prompt</button>
+        </div>
+        <div class="panel" id="zp-list"></div>
+      </section>
+
+      <!-- DEVELOPERS HUB -->
+      <section class="page" id="page-developers">
+        <div class="page-head">
+          <div><h2>Developers</h2><p>Developer requests and accounts, uploads waiting for approval, and the ZIP password generated for every download.</p></div>
+          <button class="btn btn-ghost btn-sm" id="btn-refresh-dev">Refresh</button>
+        </div>
+        <div class="filter-chips" id="dev-tabs">
+          <button class="fchip active" data-dt="requests">Requests <span id="dt-n-req">0</span></button>
+          <button class="fchip" data-dt="devs">Developers <span id="dt-n-devs">0</span></button>
+          <button class="fchip" data-dt="pending">Pending uploads <span id="dt-n-pend">0</span></button>
+          <button class="fchip" data-dt="passwords">Passwords <span id="dt-n-pw">0</span></button>
+        </div>
+        <div class="toolbar">
+          <div class="search-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="dev-search" placeholder="Search name, UID, file..."></div>
+        </div>
+        <div class="panel" id="dev-list"></div>
+      </section>
+
       <!-- SETTINGS -->
       <section class="page" id="page-settings">
-        <div class="page-head"><div><h2>Site Settings</h2><p>Controls the storefront's name, tagline, and logo.</p></div></div>
+        <div class="page-head"><div><h2>Site Settings</h2><p>Controls the storefront's name, tagline, logo, and whether users can upload apps or files.</p></div></div>
         <div class="panel" style="padding:20px;max-width:480px;">
           <div class="field"><label for="set-name">Site name</label><input id="set-name" placeholder="MR APK BAZAR"></div>
           <div class="field"><label for="set-tagline">Tagline</label><input id="set-tagline" placeholder="Premium Android App Marketplace"></div>
           <div class="field"><label for="set-logo">Logo URL</label><input id="set-logo" placeholder="https://..."></div>
+          <div class="toggle-row"><span class="lbl">Allow users to upload apps</span><label class="switch"><input type="checkbox" id="set-allow-apps" checked><span class="track"><span class="thumb"></span></span></label></div>
+          <div class="toggle-row"><span class="lbl">Allow users to upload files</span><label class="switch"><input type="checkbox" id="set-allow-files" checked><span class="track"><span class="thumb"></span></span></label></div>
+          <h3 class="set-h" style="margin:22px 0 10px;font-size:1rem;">Top ticker (scrolling line)</h3>
+          <div class="toggle-row"><span class="lbl">Show the ticker under the header</span><label class="switch"><input type="checkbox" id="tk-enabled"><span class="track"><span class="thumb"></span></span></label></div>
+          <div class="field"><label for="tk-text">Ticker text (moves right to left)</label><input id="tk-text" maxlength="300" placeholder="e.g. New apps added every week!"></div>
+
+          <h3 class="set-h" style="margin:22px 0 10px;font-size:1rem;">Welcome notice (before Home)</h3>
+          <div class="toggle-row"><span class="lbl">Show the notice to signed-in users</span><label class="switch"><input type="checkbox" id="nt-enabled"><span class="track"><span class="thumb"></span></span></label></div>
+          <div class="field"><label for="nt-title">Title</label><input id="nt-title" maxlength="120" placeholder="e.g. Welcome!"></div>
+          <div class="field"><label for="nt-text">Message</label><textarea id="nt-text" rows="4" maxlength="1500" placeholder="The notice text"></textarea></div>
+          <div class="field"><label for="nt-btn">Button name</label><input id="nt-btn" maxlength="40" placeholder="Continue"></div>
+          <div class="field"><label for="nt-action">Button action</label><select id="nt-action"><option value="close">Close and go to Home</option><option value="link">Open a link</option></select></div>
+          <div class="field" id="nt-url-field" hidden><label for="nt-url">Link (https)</label><input id="nt-url" type="url" placeholder="https://..."></div>
+          <div class="form-row2">
+            <div class="field"><label for="nt-gap">Show again after (hours)</label><input id="nt-gap" type="number" min="1" step="1" placeholder="10"></div>
+            <div class="field"><label for="nt-max">Times to show</label><input id="nt-max" type="number" min="1" step="1" placeholder="2"></div>
+          </div>
+          <p style="font-size:.78rem;color:var(--text-faint);margin:-6px 0 12px;">10 = every 10 hours, 24 = once a day. Each person sees it up to the number of times above.</p>
+          <div class="toggle-row"><span class="lbl">Show to everyone again (on save)</span><label class="switch"><input type="checkbox" id="nt-reset"><span class="track"><span class="thumb"></span></span></label></div>
+
           <button class="btn btn-primary" id="btn-save-settings">Save Settings</button>
         </div>
       </section>
@@ -305,8 +355,35 @@
   </div>
 </div>
 
+<div class="overlay" id="zp-overlay"></div>
+<div class="modal" id="zp-modal" role="dialog" aria-modal="true">
+  <div class="modal-head"><h3 id="zp-modal-title">Add ZIP Prompt</h3><button class="icon-btn" id="zp-modal-close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+  <input type="hidden" id="zp-id">
+  <div class="field"><label for="zp-category">Category</label><input id="zp-category" placeholder="e.g. Google Studio" autocomplete="off"></div>
+  <div class="field"><label for="zp-title">Display name * (shown to users)</label><input id="zp-title" placeholder="e.g. Home page" autocomplete="off"></div>
+  <div class="form-row2">
+    <div class="field"><label for="zp-filename">File name in ZIP</label><input id="zp-filename" placeholder="e.g. index.html" autocomplete="off"></div>
+    <div class="field"><label for="zp-pwmode">ZIP password</label><select id="zp-pwmode"><option value="auto">Auto (unique per downloader)</option><option value="custom">Custom (same for everyone)</option><option value="none">No password</option></select></div>
+  </div>
+  <div class="field" id="zp-pass-field" hidden><label for="zp-zippass">Password</label><input id="zp-zippass" placeholder="4–64 characters" autocomplete="off"></div>
+  <div class="field"><label for="zp-import">Upload a file from this device (fills text + file name)</label><input type="file" id="zp-import" accept=".html,.htm,.css,.js,.json,.txt,.md,.xml,.csv,.ts,.jsx,.tsx,.py,.svg"></div>
+  <div class="field"><label for="zp-text">Text * — wrap editable parts in {{ }}, e.g. {{index.html}}</label><textarea id="zp-text" style="min-height:130px;" placeholder="The text that goes into the file"></textarea></div>
+  <div class="toggle-row"><span class="lbl">Enabled (visible on site)</span><label class="switch"><input type="checkbox" id="zp-enabled" checked><span class="track"><span class="thumb"></span></span></label></div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost btn-block" id="zp-modal-cancel">Cancel</button>
+    <button class="btn btn-primary btn-block" id="zp-modal-save">Save</button>
+  </div>
+</div>
+
 <div id="toast-host"></div>
 
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+</script>
 <script type="module" src="admin-script.js"></script>
 </body>
 </html>

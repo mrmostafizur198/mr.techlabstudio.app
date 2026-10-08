@@ -119,6 +119,8 @@ function applyPage(name){
   if(name==="apps") renderAppsList();
   if(name==="host") renderHostList();
   if(name==="prompts") renderPromptsList();
+  if(name==="zipprompts") renderZpList();
+  if(name==="developers") renderHub();
   if(name==="settings") loadSettingsForm();
   if(name==="analytics") loadAnalytics();
   if(name==="admins") renderAdminsList();
@@ -132,7 +134,7 @@ function switchPage(name){
 }
 window.addEventListener("popstate", (e)=>{
   const st = e.state;
-  const modalIds = { "app-modal":closeAppModal, "host-modal":closeHostModal, "prompt-modal":closePromptModal };
+  const modalIds = { "app-modal":closeAppModal, "host-modal":closeHostModal, "prompt-modal":closePromptModal, "zp-modal":closeZpModal };
   const openModalKey = Object.keys(modalIds).find(id => $("#"+id).classList.contains("show"));
   const targetIsModal = !!(st && st.type === "overlay" && modalIds[st.overlay]);
 
@@ -154,6 +156,7 @@ history.replaceState({type:"page", page:"dashboard"}, "", location.href);
 async function boot(){
   await loadApps();
   renderDashboard();
+  loadHub(true);   // quiet preload for the Developers badge
 }
 async function loadApps(){
   try{
@@ -199,8 +202,11 @@ function appRowHtml(app){
         ${app.category ? `<span>· ${escapeHtml(app.category)}</span>` : ""}
         <span class="badge">${typeLabel}</span>
         <span class="badge ${app.enabled!==false?'on':'off'}">${app.enabled!==false?"Enabled":"Disabled"}</span>
+        ${app.status==="pending" ? `<span class="badge feat">Pending approval</span>` : app.status==="rejected" ? `<span class="badge bad">Rejected</span>` : ""}
+        ${app.submitterName ? `<span>· by ${escapeHtml(app.submitterName)}</span>` : ""}
         ${app.featured ? `<span class="badge feat">Featured</span>` : ""}
       </div>
+      ${app.status==="pending" ? `<div class="uf-actions" style="margin-top:8px;"><button class="btn btn-primary btn-sm" data-approve-app="${escapeHtml(app.id)}">Approve</button><button class="btn btn-sm" data-reject-app="${escapeHtml(app.id)}">Reject</button></div>` : ""}
     </div>
     <div class="row-actions">
       <button class="icon-btn" data-edit="${escapeHtml(app.id)}" aria-label="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
@@ -219,6 +225,20 @@ $("#apps-search").addEventListener("input", renderAppsList);
 function bindAppRowActions(root){
   $$("[data-edit]", root).forEach(btn=> btn.addEventListener("click", ()=> openAppModal(btn.dataset.edit)));
   $$("[data-del]", root).forEach(btn=> btn.addEventListener("click", ()=> deleteApp(btn.dataset.del)));
+  $$("[data-approve-app]", root).forEach(btn=> btn.addEventListener("click", ()=> reviewApp(btn.dataset.approveApp, "approved")));
+  $$("[data-reject-app]", root).forEach(btn=> btn.addEventListener("click", ()=> reviewApp(btn.dataset.rejectApp, "rejected")));
+}
+// user-submitted apps arrive as enabled:false + status:"pending"; approving makes them live on the site
+async function reviewApp(id, decision){
+  const app = state.apps.find(a=>a.id===id); if(!app) return;
+  const patch = decision === "approved" ? { status:"approved", enabled:true } : { status:"rejected", enabled:false };
+  patch.reviewedAt = Date.now(); patch.reviewedBy = state.user.uid;
+  try{
+    await update(ref(db, `apps/${id}`), patch);
+    Object.assign(app, patch);
+    toast(decision === "approved" ? "Approved. It is now live on the site." : "Rejected.", "success");
+    renderAppsList(); renderDashboard();
+  }catch(err){ toast("Action failed. Check your admin permissions.", "error"); }
 }
 async function deleteApp(id){
   const app = state.apps.find(a=>a.id===id);
@@ -336,6 +356,8 @@ async function saveAppForm(){
     featured: $("#app-featured").checked,
     updatedAt: now
   };
+  { const prev = id ? state.apps.find(x=>x.id===id) : null;
+    if(prev && prev.status === "pending" && payload.enabled) payload.status = "approved"; }
   try{
     if(id){
       await update(ref(db, `apps/${id}`), payload);
@@ -561,15 +583,54 @@ async function loadSettingsForm(){
     $("#set-name").value = s.siteName || "";
     $("#set-tagline").value = s.tagline || "";
     $("#set-logo").value = s.logoUrl || "";
+    $("#set-allow-apps").checked = s.allowAppUploads !== false;
+    $("#set-allow-files").checked = s.allowFileUploads !== false;
+    const tk = s.ticker || {}, nt = s.notice || {};
+    $("#tk-enabled").checked = tk.enabled === true;
+    $("#tk-text").value = tk.text || "";
+    $("#nt-enabled").checked = nt.enabled === true;
+    $("#nt-title").value = nt.title || "";
+    $("#nt-text").value = nt.text || "";
+    $("#nt-btn").value = nt.buttonText || "";
+    $("#nt-action").value = nt.buttonAction === "link" ? "link" : "close";
+    $("#nt-url").value = nt.buttonUrl || "";
+    $("#nt-gap").value = nt.gapHours || 10;
+    $("#nt-max").value = nt.maxShows || 2;
+    $("#nt-reset").checked = false;
+    state.noticeResetAt = nt.resetAt || 0;
+    ntApplyAction();
   }catch(err){ toast("Unable to load settings.", "error"); }
 }
+function ntApplyAction(){ $("#nt-url-field").hidden = $("#nt-action").value !== "link"; }
+$("#nt-action").addEventListener("change", ntApplyAction);
 $("#btn-save-settings").addEventListener("click", async ()=>{
+  const action = $("#nt-action").value;
+  const url = $("#nt-url").value.trim();
+  if(action === "link" && !/^https:\/\/\S+$/i.test(url)){ toast("Enter a valid https:// link for the notice button.", "error"); return; }
+  const gap = Math.max(1, Math.round(Number($("#nt-gap").value) || 10));
+  const max = Math.max(1, Math.round(Number($("#nt-max").value) || 2));
+  const resetAt = $("#nt-reset").checked ? Date.now() : (state.noticeResetAt || 0);
   try{
     await update(ref(db, "settings"), {
+      ticker: { enabled: $("#tk-enabled").checked, text: $("#tk-text").value.trim() },
+      notice: {
+        enabled: $("#nt-enabled").checked,
+        title: $("#nt-title").value.trim(),
+        text: $("#nt-text").value.trim(),
+        buttonText: $("#nt-btn").value.trim(),
+        buttonAction: action,
+        buttonUrl: action === "link" ? url : "",
+        gapHours: gap,
+        maxShows: max,
+        resetAt
+      },
       siteName: $("#set-name").value.trim(),
       tagline: $("#set-tagline").value.trim(),
-      logoUrl: $("#set-logo").value.trim()
+      logoUrl: $("#set-logo").value.trim(),
+      allowAppUploads: $("#set-allow-apps").checked,
+      allowFileUploads: $("#set-allow-files").checked
     });
+    state.noticeResetAt = resetAt; $("#nt-reset").checked = false;
     toast("Settings saved.", "success");
   }catch(err){ toast("Save failed. Check your permissions.", "error"); }
 });
@@ -736,3 +797,347 @@ async function renderUsersList(){
 }
 $("#users-search").addEventListener("input", renderUsersListFromState);
 $("#btn-refresh-users").addEventListener("click", renderUsersList);
+
+/* ===================== ZIP PROMPTS (separate from Prompts; collection "zipPrompts") ===================== */
+state.zipPrompts = [];
+async function loadZipPrompts(){
+  try{
+    const snap = await get(ref(db, "zipPrompts"));
+    const val = snap.exists() ? snap.val() : {};
+    state.zipPrompts = Object.entries(val).map(([id,v])=>({id,...v}));
+  }catch(err){ toast("Unable to load ZIP prompts.", "error"); }
+}
+state.zpOpen = new Set();
+function zpSpots(p){ return ((p.promptText||"").match(/\{\{[^}]*\}\}/g) || []).length; }
+function zpRowHtml(p){
+  const n = zpSpots(p);
+  const meta = [p.fileName || "", n ? `${n} edit spot${n>1?"s":""}` : "no edits needed"].filter(Boolean).join(" · ");
+  const row = promptRowHtml({id:p.id, title:p.title, promptText:meta, enabled:p.enabled})
+    .replace(/data-edit-prompt/g, "data-edit-zp").replace(/data-del-prompt/g, "data-del-zp");
+  if(p.status === "pending"){
+    return `<div class="zp-pend">${row}<div class="uf-actions" style="padding:0 16px 12px;align-items:center;"><span class="badge feat">Pending approval</span>${p.submitterName ? `<span class="uf-meta">by ${escapeHtml(p.submitterName)}</span>` : ""}<button class="btn btn-primary btn-sm" data-approve-zp="${escapeHtml(p.id)}">Approve</button><button class="btn btn-sm" data-reject-zp="${escapeHtml(p.id)}">Reject</button></div></div>`;
+  }
+  if(p.status === "rejected"){
+    return `<div class="zp-pend">${row}<div class="uf-actions" style="padding:0 16px 12px;align-items:center;"><span class="badge bad">Rejected</span>${p.submitterName ? `<span class="uf-meta">by ${escapeHtml(p.submitterName)}</span>` : ""}<button class="btn btn-primary btn-sm" data-approve-zp="${escapeHtml(p.id)}">Approve instead</button></div></div>`;
+  }
+  return row;
+}
+const zpCatOf = p => (p.category || "").trim() || "General";
+const ZP_LOCK_ON = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>';
+const ZP_LOCK_OFF = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 7.5-2"/></svg>';
+const ZP_PLUS = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>';
+async function renderZpList(){
+  const wrap = $("#zp-list"); if(!wrap) return;
+  await loadZipPrompts();
+  const map = new Map();
+  state.zipPrompts.forEach(p=>{ const c = zpCatOf(p); if(!map.has(c)) map.set(c, []); map.get(c).push(p); });
+  wrap.innerHTML = map.size ? [...map.entries()].map(([cat, items])=>{
+    const open = state.zpOpen.has(cat) || items.some(p=> p.status === "pending"), spots = items.reduce((a,p)=> a + zpSpots(p), 0);
+    const locked = items.some(p=> p.zipPassword);
+    const e = escapeHtml(cat);
+    return `<div class="zp-cat"><div class="zp-headrow">
+      <button class="zp-head${open?" open":""}" data-zp-cat="${e}"><span>${e}</span><span class="zp-count">${items.length} file${items.length>1?"s":""}${spots ? " · " + spots + " edit spots" : ""}</span></button>
+      <button class="icon-btn zp-act${locked?" on":""}" data-zp-lock="${e}" aria-label="ZIP password" title="${locked ? "ZIP password set — tap to change or remove" : "Set a ZIP password for this category"}">${locked ? ZP_LOCK_ON : ZP_LOCK_OFF}</button>
+      <button class="icon-btn zp-act" data-zp-add="${e}" aria-label="Add file" title="Add a file to this category">${ZP_PLUS}</button>
+    </div><div class="zp-body"${open?"":" hidden"}>${items.map(zpRowHtml).join("")}</div></div>`;
+  }).join("") : `<div class="empty-note">No ZIP prompts yet. Add your first one.</div>`;
+  wrap.onclick = (ev)=>{
+    const ap = ev.target.closest("[data-approve-zp]");
+    if(ap){ reviewZp(ap.dataset.approveZp, "approved"); return; }
+    const rj = ev.target.closest("[data-reject-zp]");
+    if(rj){ reviewZp(rj.dataset.rejectZp, "rejected"); return; }
+    const lock = ev.target.closest("[data-zp-lock]");
+    if(lock){ setZpCategoryPassword(lock.dataset.zpLock); return; }
+    const add = ev.target.closest("[data-zp-add]");
+    if(add){ openZpModal(null, add.dataset.zpAdd); return; }
+    const h = ev.target.closest("[data-zp-cat]"); if(!h) return;
+    const c = h.dataset.zpCat, body = h.closest(".zp-cat").querySelector(".zp-body");
+    body.hidden = !body.hidden; h.classList.toggle("open", !body.hidden);
+    if(body.hidden) state.zpOpen.delete(c); else state.zpOpen.add(c);
+  };
+  $$("[data-edit-zp]", wrap).forEach(btn=> btn.addEventListener("click", ()=> openZpModal(btn.dataset.editZp)));
+  $$("[data-del-zp]", wrap).forEach(btn=> btn.addEventListener("click", ()=> deleteZp(btn.dataset.delZp)));
+}
+// user-submitted files arrive as enabled:false + status:"pending"; approving makes them live
+async function reviewZp(id, decision){
+  const p = state.zipPrompts.find(x=>x.id===id); if(!p) return;
+  const patch = decision === "approved" ? { status:"approved", enabled:true } : { status:"rejected", enabled:false };
+  patch.reviewedAt = Date.now(); patch.reviewedBy = state.user.uid;
+  try{
+    await update(ref(db, `zipPrompts/${id}`), patch);
+    toast(decision === "approved" ? "Approved. It is now live on the Files page." : "Rejected.", "success");
+    renderZpList();
+  }catch(err){ toast("Action failed. Check your admin permissions.", "error"); }
+}
+// the lock icon sets (or removes) the ZIP password for every file in a category at once
+async function setZpCategoryPassword(cat){
+  const items = state.zipPrompts.filter(p=> zpCatOf(p) === cat);
+  if(!items.length){ toast("Add a file to this category first.", "error"); return; }
+  const current = (items.find(p=> p.passwordMode === "custom" && p.zipPassword) || {}).zipPassword || "";
+  const input = window.prompt(`One ZIP password for every file in "${cat}"\n(leave empty to go back to automatic per-download passwords)`, current);
+  if(input === null) return;
+  const pw = input.trim();
+  const updates = {};
+  items.forEach(p=>{
+    updates[`zipPrompts/${p.id}/zipPassword`] = pw || "";
+    updates[`zipPrompts/${p.id}/passwordMode`] = pw ? "custom" : "auto";
+  });
+  try{
+    await update(ref(db), updates);
+    toast(pw ? "Category locked with one password." : "Back to automatic passwords.", "success");
+    renderZpList();
+  }catch(err){ toast("Could not save. Check your admin permissions.", "error"); }
+}
+async function deleteZp(id){
+  const p = state.zipPrompts.find(x=>x.id===id);
+  if(!confirm(`Delete "${p ? p.title : "this item"}"? This cannot be undone.`)) return;
+  try{
+    await remove(ref(db, `zipPrompts/${id}`));
+    state.zipPrompts = state.zipPrompts.filter(x=>x.id!==id);
+    toast("Deleted.", "success");
+    renderZpList();
+  }catch(err){ toast("Delete failed. Check your permissions.", "error"); }
+}
+function openZpModal(id, presetCat){
+  const p = id ? state.zipPrompts.find(x=>x.id===id) : null;
+  const catPw = (!p && presetCat) ? ((state.zipPrompts.find(x=> zpCatOf(x) === presetCat && x.passwordMode === "custom" && x.zipPassword) || {}).zipPassword || "") : "";
+  $("#zp-modal-title").textContent = p ? "Edit ZIP Prompt" : "Add ZIP Prompt";
+  $("#zp-id").value = p ? p.id : "";
+  $("#zp-title").value = p?.title || "";
+  $("#zp-category").value = p ? (p.category || "") : (presetCat || "");
+  $("#zp-filename").value = p?.fileName || "";
+  $("#zp-text").value = p?.promptText || "";
+  $("#zp-zippass").value = p ? (p.zipPassword || "") : catPw;
+  $("#zp-pwmode").value = p ? (["custom","none"].includes(p.passwordMode) ? p.passwordMode : "auto") : (catPw ? "custom" : "auto");
+  zpApplyMode();
+  $("#zp-import").value = "";
+  $("#zp-enabled").checked = p ? p.enabled !== false : true;
+  $("#zp-overlay").classList.add("show");
+  $("#zp-modal").classList.add("show");
+  history.pushState({type:"overlay", overlay:"zp-modal"}, "", location.href);
+}
+function zpApplyMode(){ $("#zp-pass-field").hidden = $("#zp-pwmode").value !== "custom"; }
+$("#zp-pwmode").addEventListener("change", zpApplyMode);
+function closeZpModal(){
+  $("#zp-overlay").classList.remove("show");
+  $("#zp-modal").classList.remove("show");
+}
+async function saveZpForm(){
+  const title = $("#zp-title").value.trim();
+  const promptText = $("#zp-text").value.trim();
+  if(!title || !promptText){ toast("Display name and text are required.", "error"); return; }
+  const id = $("#zp-id").value;
+  const pwMode = $("#zp-pwmode").value;
+  const pwVal = pwMode === "custom" ? $("#zp-zippass").value.trim() : "";
+  if(pwMode === "custom" && (pwVal.length < 4 || pwVal.length > 64)){ toast("Custom password must be 4–64 characters.", "error"); return; }
+  const payload = { title, promptText, category: $("#zp-category").value.trim(), fileName: $("#zp-filename").value.trim(), passwordMode: pwMode, zipPassword: pwVal, enabled: $("#zp-enabled").checked };
+  { const prev = id ? state.zipPrompts.find(x=>x.id===id) : null;
+    if(prev && prev.status === "pending" && payload.enabled) payload.status = "approved"; }
+  try{
+    if(id){ await update(ref(db, `zipPrompts/${id}`), payload); toast("Updated.", "success"); }
+    else{ await set(push(ref(db, "zipPrompts")), payload); toast("Added.", "success"); }
+    history.back();
+    renderZpList();
+  }catch(err){ toast("Save failed. Check your permissions.", "error"); }
+}
+$("#btn-add-zp").addEventListener("click", ()=> openZpModal(null));
+$("#zp-modal-close").addEventListener("click", ()=> history.back());
+$("#zp-modal-cancel").addEventListener("click", ()=> history.back());
+$("#zp-overlay").addEventListener("click", ()=> history.back());
+$("#zp-modal-save").addEventListener("click", saveZpForm);
+$("#zp-import").addEventListener("change", async (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  $("#zp-text").value = await f.text();
+  $("#zp-filename").value = f.name;
+  if(!$("#zp-title").value.trim()) $("#zp-title").value = f.name;
+});
+
+/* ===================== DEVELOPERS HUB (requests · developers · pending uploads · download passwords) ===================== */
+state.hub = { requests:[], devs:[], pendApps:[], pendFiles:[], pws:[] };
+state.hubTab = "requests";
+const escAttr = (v)=> escapeHtml(v).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+const fmtDateTime = (ts)=> ts ? new Date(ts).toLocaleString([], {day:"numeric", month:"short", year:"numeric", hour:"numeric", minute:"2-digit"}) : "";
+async function hubCopy(text){
+  try{
+    if(navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text); else throw 0;
+  }catch(e){
+    const ta = document.createElement("textarea"); ta.value = text; ta.style.cssText = "position:fixed;opacity:0";
+    document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); }catch(_){} ta.remove();
+  }
+  toast("Copied.", "success");
+}
+const hubAv = (name, photo)=> /^https:\/\//i.test(photo || "")
+  ? `<img class="hub-av" src="${escAttr(photo)}" alt="" loading="lazy" onerror="this.style.display='none'">`
+  : `<div class="hub-av hub-av-f">${escapeHtml((name || "?").trim().charAt(0).toUpperCase() || "?")}</div>`;
+
+async function loadHub(quiet){
+  const get_ = async (path)=>{ const s = await get(ref(db, path)); return s.exists() ? s.val() : {}; };
+  const res = await Promise.allSettled([get_("developerRequests"), get_("developers"), get_("apps"), get_("zipPrompts"), get_("filePasswords")]);
+  const val = (i)=> res[i].status === "fulfilled" ? res[i].value : {};
+  if(!quiet && res.some(r=> r.status === "rejected")) toast("Some data could not be loaded. Check your database rules.", "error");
+  const reqs = val(0), devs = val(1), apps = val(2), files = val(3), pws = val(4);
+  state.hub.devs = Object.entries(devs).map(([uid,d])=>({uid, ...d})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  state.hub.requests = Object.entries(reqs).filter(([uid])=> !devs[uid]).map(([uid,r])=>({uid, ...r})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  state.hub.pendApps = Object.entries(apps).filter(([,a])=> a.status === "pending").map(([id,a])=>({id, ...a}));
+  state.hub.pendFiles = Object.entries(files).filter(([,p])=> p.status === "pending").map(([id,p])=>({id, ...p}));
+  state.hub.counts = { apps:{}, files:{} };
+  Object.values(apps).forEach(a=>{ if(a.submittedBy) state.hub.counts.apps[a.submittedBy] = (state.hub.counts.apps[a.submittedBy]||0) + 1; });
+  Object.values(files).forEach(p=>{ if(p.submittedBy) state.hub.counts.files[p.submittedBy] = (state.hub.counts.files[p.submittedBy]||0) + 1; });
+  const fi = {};
+  Object.entries(files).forEach(([id,p])=>{ fi[id] = { category:p.category, fileName:p.fileName, title:p.title }; });
+  const out = [];
+  Object.entries(pws).forEach(([fid, users])=>{
+    const info = fi[fid] || {};
+    Object.entries(users || {}).forEach(([uid, r])=> out.push({
+      ...r, fid, uid,
+      category: r.category || info.category || "General",
+      fileName: r.fileName || info.fileName || r.fileTitle || info.title || "file"
+    }));
+  });
+  state.hub.pws = out.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  hubCounts();
+}
+function hubCounts(){
+  const h = state.hub;
+  const set_ = (id, n)=>{ const el = $(id); if(el) el.textContent = n; };
+  set_("#dt-n-req", h.requests.length); set_("#dt-n-devs", h.devs.length);
+  set_("#dt-n-pend", h.pendApps.length + h.pendFiles.length); set_("#dt-n-pw", new Set(h.pws.map(r=> r.uid)).size);
+  const todo = h.requests.filter(r=> r.approved !== true).length + h.pendApps.length + h.pendFiles.length;
+  const nav = $("#nav-dev-count");
+  if(nav){ nav.textContent = todo; nav.hidden = !todo; }
+}
+function hubCardRequest(r){
+  const ok = r.approved === true;
+  const digits = String(r.whatsapp || "").replace(/\D/g, "");
+  const msg = `Your developer code for ${state.siteName || "our site"}: ${r.code}`;
+  const uid = escAttr(r.uid);
+  return `<div class="uf-card">
+    <div class="uf-top"><div class="uf-title">${escapeHtml(r.name || "Unnamed")}</div><div class="uf-badges">${ok ? '<span class="badge on">Approved</span>' : '<span class="badge feat">Waiting</span>'}</div></div>
+    <div class="uf-meta">WhatsApp ${escapeHtml(r.whatsapp || "")} · ${escapeHtml(r.email || "")}</div>
+    <div class="uf-meta">${escapeHtml(fmtDateTime(r.createdAt))}</div>
+    <div class="hub-code"><span>Code: <b>${escapeHtml(r.code || "")}</b></span><button class="btn btn-sm" data-hub-copy="${escAttr(r.code || "")}">Copy</button></div>
+    <div class="uf-actions">
+      ${ok ? `<button class="btn btn-sm" data-req-unapprove="${uid}">Unapprove</button>` : `<button class="btn btn-primary btn-sm" data-req-approve="${uid}">Approve</button>`}
+      ${digits ? `<a class="btn btn-sm" target="_blank" rel="noopener noreferrer" href="https://wa.me/${digits}?text=${encodeURIComponent(msg)}">Send on WhatsApp</a>` : ""}
+      <button class="btn btn-danger btn-sm" data-req-reject="${uid}">Reject</button>
+    </div>
+  </div>`;
+}
+function hubCardDev(d){
+  const blocked = d.blocked === true;
+  const na = state.hub.counts.apps[d.uid] || 0, nf = state.hub.counts.files[d.uid] || 0;
+  return `<div class="uf-card">
+    <div class="uf-top"><div class="uf-title">${escapeHtml(d.name || "Unnamed")}</div><div class="uf-badges">${blocked ? '<span class="badge bad">Blocked</span>' : '<span class="badge on">Active</span>'}</div></div>
+    <div class="uf-meta">WhatsApp ${escapeHtml(d.whatsapp || "")} · ${escapeHtml(d.email || "")}</div>
+    <div class="uf-meta">Joined ${escapeHtml(fmtDateTime(d.createdAt))} · ${na} app${na===1?"":"s"} · ${nf} file${nf===1?"":"s"}</div>
+    <div class="uf-uid">UID: ${escapeHtml(d.uid)}</div>
+    <div class="uf-actions"><button class="btn ${blocked ? "btn-primary" : "btn-danger"} btn-sm" data-dev-block="${escAttr(d.uid)}" data-blocked="${blocked ? "1" : "0"}">${blocked ? "Unblock" : "Block"}</button></div>
+  </div>`;
+}
+function hubCardPending(kind, x){
+  const title = kind === "app" ? x.name : x.title;
+  const extra = kind === "app"
+    ? (/^https:\/\//i.test(x.downloadUrl || "") ? `<a class="uf-link" href="${escAttr(x.downloadUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(x.downloadUrl)}</a>` : "")
+    : `<div class="uf-meta">${escapeHtml((x.category || "General") + " · " + (x.fileName || "no file name"))}</div><div class="hub-snip">${escapeHtml((x.promptText || "").slice(0, 220))}</div>`;
+  return `<div class="uf-card">
+    <div class="uf-top"><div class="uf-title">${escapeHtml(title || "Untitled")}</div><div class="uf-badges"><span class="badge paid">${kind === "app" ? "App" : "File"}</span><span class="badge feat">Pending</span></div></div>
+    <div class="uf-meta">By ${escapeHtml(x.submitterName || "Developer")} · ${escapeHtml(fmtDateTime(x.createdAt))}</div>
+    ${extra}
+    <div class="uf-actions">
+      <button class="btn btn-primary btn-sm" data-hub-review="approved" data-kind="${kind}" data-id="${escAttr(x.id)}">Approve</button>
+      <button class="btn btn-sm" data-hub-review="rejected" data-kind="${kind}" data-id="${escAttr(x.id)}">Reject</button>
+    </div>
+  </div>`;
+}
+const hubLine = (name, pw)=> `${name} --- ${pw}`;
+const hubNL = (v)=> escAttr(v).replace(/\n/g, "&#10;");
+function hubCardUser(rows){
+  const first = rows[0];
+  const cats = new Map();
+  rows.forEach(r=>{ const c = r.category || "General"; if(!cats.has(c)) cats.set(c, []); cats.get(c).push(r); });
+  const body = Array.from(cats.entries()).map(([cat, items])=>{
+    const all = items.map(r=> hubLine(r.fileName, r.password)).join("\n");
+    const lines = items.map(r=> `<div class="hub-row">
+      <div class="hub-rmain"><div class="hub-rn">${escapeHtml(r.fileName)}</div><div class="hub-rp">${escapeHtml(r.password || "")}</div><div class="uf-meta">by ${escapeHtml(r.ownerName || "Admin")} · ${Number(r.count) || 0} download${(Number(r.count) || 0) === 1 ? "" : "s"}</div></div>
+      <button class="btn btn-sm" data-hub-copy="${hubNL(hubLine(r.fileName, r.password))}">Copy</button></div>`).join("");
+    return `<div class="hub-cat"><div class="hub-cat-head"><span>${escapeHtml(cat)}</span><button class="btn btn-sm" data-hub-copy="${hubNL(all)}">Copy all</button></div>${lines}</div>`;
+  }).join("");
+  return `<div class="uf-card">
+    <button type="button" class="hub-head" data-hub-toggle>${hubAv(first.userName, first.userPhoto)}
+      <div class="hub-info"><div class="uf-title">${escapeHtml(first.userName || "User")}</div><div class="uf-uid">${escapeHtml(first.uid)}</div></div>
+      <span class="uf-meta">${rows.length} file${rows.length === 1 ? "" : "s"}</span><span class="hub-chev">▾</span></button>
+    <div class="hub-body" hidden>${body}</div></div>`;
+}
+function renderHubList(){
+  const wrap = $("#dev-list"); if(!wrap) return;
+  const q = ($("#dev-search").value || "").trim().toLowerCase();
+  const has = (...vals)=> !q || vals.some(v=> String(v || "").toLowerCase().includes(q));
+  const h = state.hub; let html = "", empty = "";
+  if(state.hubTab === "requests"){
+    const rows = h.requests.filter(r=> has(r.name, r.whatsapp, r.email, r.uid));
+    html = rows.map(hubCardRequest).join(""); empty = "No developer requests.";
+  }else if(state.hubTab === "devs"){
+    const rows = h.devs.filter(d=> has(d.name, d.whatsapp, d.email, d.uid));
+    html = rows.map(hubCardDev).join(""); empty = "No developer accounts yet.";
+  }else if(state.hubTab === "pending"){
+    const rows = [...h.pendApps.map(x=>["app",x]), ...h.pendFiles.map(x=>["file",x])]
+      .filter(([k,x])=> has(x.name, x.title, x.submitterName)).sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
+    html = rows.map(([k,x])=> hubCardPending(k,x)).join(""); empty = "Nothing waiting for approval.";
+  }else{
+    const rows = h.pws.filter(r=> has(r.userName, r.uid, r.fileName, r.fileTitle, r.category, r.ownerName, r.password));
+    const byUser = new Map();
+    rows.forEach(r=>{ if(!byUser.has(r.uid)) byUser.set(r.uid, []); byUser.get(r.uid).push(r); });
+    html = Array.from(byUser.values()).map(hubCardUser).join(""); empty = "No downloads yet.";
+  }
+  wrap.innerHTML = html || `<div class="empty-note">${empty}</div>`;
+}
+async function renderHub(){ await loadHub(); renderHubList(); }
+
+$("#btn-refresh-dev").addEventListener("click", renderHub);
+$("#dev-search").addEventListener("input", renderHubList);
+$("#dev-tabs").addEventListener("click", (e)=>{
+  const b = e.target.closest("[data-dt]"); if(!b) return;
+  state.hubTab = b.dataset.dt;
+  $$("#dev-tabs .fchip").forEach(c=> c.classList.toggle("active", c === b));
+  renderHubList();
+});
+$("#dev-list").addEventListener("click", async (e)=>{
+  const tg = e.target.closest("[data-hub-toggle]");
+  if(tg){ const b = tg.nextElementSibling; if(b){ b.hidden = !b.hidden; tg.classList.toggle("open", !b.hidden); } return; }
+  const copy = e.target.closest("[data-hub-copy]");
+  if(copy){ hubCopy(copy.dataset.hubCopy); return; }
+  const btn = e.target.closest("button"); if(!btn) return;
+  try{
+    if(btn.dataset.reqApprove !== undefined){
+      btn.disabled = true;
+      await update(ref(db, `developerRequests/${btn.dataset.reqApprove}`), { approved:true, approvedAt:Date.now(), approvedBy:state.user.uid });
+      toast("Approved. Send the code to the developer.", "success");
+    }else if(btn.dataset.reqUnapprove !== undefined){
+      btn.disabled = true;
+      await update(ref(db, `developerRequests/${btn.dataset.reqUnapprove}`), { approved:false });
+      toast("Approval removed.", "success");
+    }else if(btn.dataset.reqReject !== undefined){
+      if(!confirm("Reject and delete this request?")) return;
+      btn.disabled = true;
+      await remove(ref(db, `developerRequests/${btn.dataset.reqReject}`));
+      toast("Request removed.", "success");
+    }else if(btn.dataset.devBlock !== undefined){
+      const nowBlocked = btn.dataset.blocked !== "1";
+      if(nowBlocked && !confirm("Block this developer? They won't be able to upload anything new.")) return;
+      btn.disabled = true;
+      await update(ref(db, `developers/${btn.dataset.devBlock}`), { blocked: nowBlocked });
+      toast(nowBlocked ? "Developer blocked." : "Developer unblocked.", "success");
+    }else if(btn.dataset.hubReview !== undefined){
+      btn.disabled = true;
+      const decision = btn.dataset.hubReview, path = btn.dataset.kind === "app" ? "apps" : "zipPrompts";
+      const patch = decision === "approved" ? { status:"approved", enabled:true } : { status:"rejected", enabled:false };
+      patch.reviewedAt = Date.now(); patch.reviewedBy = state.user.uid;
+      await update(ref(db, `${path}/${btn.dataset.id}`), patch);
+      toast(decision === "approved" ? "Approved. It is now live." : "Rejected.", "success");
+    }else return;
+    await loadHub(true); renderHubList();
+  }catch(err){
+    toast("Action failed. Check your admin permissions.", "error");
+    btn.disabled = false;
+  }
+});
