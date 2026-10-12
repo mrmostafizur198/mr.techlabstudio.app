@@ -190,6 +190,28 @@ function renderDashboard(){
 }
 
 /* ===================== APPS LIST ===================== */
+/* ===================== SHARE LINKS (opens the user site on that app / file) ===================== */
+function siteBase(){
+  let b = "";
+  try{ b = localStorage.getItem("mtl_site_url") || ""; }catch(e){}
+  // a saved link that points into the admin folder is wrong -> ask again
+  const isAdminPath = (u)=> /admin/i.test(u.replace(/^https?:\/\/[^/]+/i, ""));
+  if(!b || isAdminPath(b)){
+    const dir = location.pathname.replace(/[^/]*$/, "").replace(/[^/]*admin[^/]*\/$/i, "");
+    const guess = location.origin + dir;
+    const v = window.prompt("Enter the link where your USER website opens (not the admin link). Asked only once:", guess);
+    if(!v || !v.trim()) return "";
+    b = v.trim();
+    if(isAdminPath(b)){ toast("That looks like the admin link. Please enter the user website link.", "error"); return ""; }
+    try{ localStorage.setItem("mtl_site_url", b); }catch(e){}
+  }
+  return b.split("#")[0].split("?")[0];
+}
+function copyShareLink(kind, id){
+  const b = siteBase(); if(!b) return;
+  hubCopy(b + "?" + kind + "=" + encodeURIComponent(id));
+}
+
 function appRowHtml(app){
   const icon = app.logoUrl ? `<img src="${escapeHtml(app.logoUrl)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ic',textContent:'${escapeHtml((app.name||'?').charAt(0).toUpperCase())}'}))">` : `<div class="ic">${escapeHtml((app.name||"?").charAt(0).toUpperCase())}</div>`;
   const typeLabel = { play_store:"Google Play", google_drive:"Google Drive", direct_apk:"Direct APK" }[app.downloadType || "direct_apk"];
@@ -209,6 +231,7 @@ function appRowHtml(app){
       ${app.status==="pending" ? `<div class="uf-actions" style="margin-top:8px;"><button class="btn btn-primary btn-sm" data-approve-app="${escapeHtml(app.id)}">Approve</button><button class="btn btn-sm" data-reject-app="${escapeHtml(app.id)}">Reject</button></div>` : ""}
     </div>
     <div class="row-actions">
+      <button class="icon-btn" data-link-app="${escapeHtml(app.id)}" aria-label="Copy link" title="Copy link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></button>
       <button class="icon-btn" data-edit="${escapeHtml(app.id)}" aria-label="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
       <button class="icon-btn danger" data-del="${escapeHtml(app.id)}" aria-label="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg></button>
     </div>
@@ -223,6 +246,7 @@ function renderAppsList(){
 }
 $("#apps-search").addEventListener("input", renderAppsList);
 function bindAppRowActions(root){
+  $$("[data-link-app]", root).forEach(btn=> btn.addEventListener("click", ()=> copyShareLink("app", btn.dataset.linkApp)));
   $$("[data-edit]", root).forEach(btn=> btn.addEventListener("click", ()=> openAppModal(btn.dataset.edit)));
   $$("[data-del]", root).forEach(btn=> btn.addEventListener("click", ()=> deleteApp(btn.dataset.del)));
   $$("[data-approve-app]", root).forEach(btn=> btn.addEventListener("click", ()=> reviewApp(btn.dataset.approveApp, "approved")));
@@ -808,12 +832,13 @@ async function loadZipPrompts(){
   }catch(err){ toast("Unable to load ZIP prompts.", "error"); }
 }
 state.zpOpen = new Set();
-function zpSpots(p){ return ((p.promptText||"").match(/\{\{[^}]*\}\}/g) || []).length; }
+function zpSpots(p){ return ((p.promptText||"").match(/\{\{[^}]*\}\}|®®[^®]*®®/g) || []).length; }
 function zpRowHtml(p){
   const n = zpSpots(p);
   const meta = [p.fileName || "", n ? `${n} edit spot${n>1?"s":""}` : "no edits needed"].filter(Boolean).join(" · ");
   const row = promptRowHtml({id:p.id, title:p.title, promptText:meta, enabled:p.enabled})
-    .replace(/data-edit-prompt/g, "data-edit-zp").replace(/data-del-prompt/g, "data-del-zp");
+    .replace(/data-edit-prompt/g, "data-edit-zp").replace(/data-del-prompt/g, "data-del-zp")
+    .replace('<button class="icon-btn" data-edit-zp=', ()=> '<button class="icon-btn" data-link-file="' + escapeHtml(p.id) + '" aria-label="Copy link" title="Copy link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></button><button class="icon-btn" data-edit-zp=');
   if(p.status === "pending"){
     return `<div class="zp-pend">${row}<div class="uf-actions" style="padding:0 16px 12px;align-items:center;"><span class="badge feat">Pending approval</span>${p.submitterName ? `<span class="uf-meta">by ${escapeHtml(p.submitterName)}</span>` : ""}<button class="btn btn-primary btn-sm" data-approve-zp="${escapeHtml(p.id)}">Approve</button><button class="btn btn-sm" data-reject-zp="${escapeHtml(p.id)}">Reject</button></div></div>`;
   }
@@ -837,11 +862,16 @@ async function renderZpList(){
     const e = escapeHtml(cat);
     return `<div class="zp-cat"><div class="zp-headrow">
       <button class="zp-head${open?" open":""}" data-zp-cat="${e}"><span>${e}</span><span class="zp-count">${items.length} file${items.length>1?"s":""}${spots ? " · " + spots + " edit spots" : ""}</span></button>
+      <button class="icon-btn zp-act" data-zp-link="${e}" aria-label="Copy category link" title="Copy link to this category"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></button>
       <button class="icon-btn zp-act${locked?" on":""}" data-zp-lock="${e}" aria-label="ZIP password" title="${locked ? "ZIP password set — tap to change or remove" : "Set a ZIP password for this category"}">${locked ? ZP_LOCK_ON : ZP_LOCK_OFF}</button>
       <button class="icon-btn zp-act" data-zp-add="${e}" aria-label="Add file" title="Add a file to this category">${ZP_PLUS}</button>
     </div><div class="zp-body"${open?"":" hidden"}>${items.map(zpRowHtml).join("")}</div></div>`;
   }).join("") : `<div class="empty-note">No ZIP prompts yet. Add your first one.</div>`;
   wrap.onclick = (ev)=>{
+    const zl = ev.target.closest("[data-zp-link]");
+    if(zl){ copyShareLink("cat", zl.dataset.zpLink); return; }
+    const ln = ev.target.closest("[data-link-file]");
+    if(ln){ copyShareLink("file", ln.dataset.linkFile); return; }
     const ap = ev.target.closest("[data-approve-zp]");
     if(ap){ reviewZp(ap.dataset.approveZp, "approved"); return; }
     const rj = ev.target.closest("[data-reject-zp]");
